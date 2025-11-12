@@ -8,6 +8,7 @@ class AuthController extends GetxController {
   final BiometricService _biometricService = BiometricService();
 
   final isLoading = false.obs;
+  final isBiometricLoading = false.obs;
   final isBiometricAvailable = false.obs;
   final isPasswordVisible = false.obs;
 
@@ -105,6 +106,7 @@ class AuthController extends GetxController {
 
   Future<void> loginWithBiometrics() async {
     try {
+      isBiometricLoading.value = true;
       final authenticated = await _biometricService.authenticate(
         localizedReason: 'Authenticate to access your account',
       );
@@ -126,6 +128,12 @@ class AuthController extends GetxController {
         //     snackPosition: SnackPosition.BOTTOM,
         //   );
         // }
+      } else {
+        Get.snackbar(
+          'Authentication Failed',
+          'Biometric authentication was cancelled or failed',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     } catch (e) {
       Get.snackbar(
@@ -133,6 +141,8 @@ class AuthController extends GetxController {
         'Biometric authentication failed: ${e.toString()}',
         snackPosition: SnackPosition.BOTTOM,
       );
+    } finally {
+      isBiometricLoading.value = false;
     }
   }
 

@@ -171,19 +171,35 @@ class LoginView extends GetView<AuthController> {
                               width: 56,
                               height: 56,
                               child: InkWell(
-                                onTap: controller.loginWithBiometrics,
+                                onTap: controller.isBiometricLoading.value
+                                    ? null
+                                    : controller.loginWithBiometrics,
                                 borderRadius: BorderRadius.circular(8),
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary,
+                                    color: controller.isBiometricLoading.value
+                                        ? AppColors.primary.withOpacity(0.6)
+                                        : AppColors.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   alignment: Alignment.center,
-                                  child: const Icon(
-                                    Icons.fingerprint,
-                                    color: AppColors.textWhite,
-                                    size: 28,
-                                  ),
+                                  child: controller.isBiometricLoading.value
+                                      ? const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              AppColors.textWhite,
+                                            ),
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.fingerprint,
+                                          color: AppColors.textWhite,
+                                          size: 28,
+                                        ),
                                 ),
                               ),
                             )

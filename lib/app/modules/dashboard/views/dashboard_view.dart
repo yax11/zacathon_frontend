@@ -139,8 +139,8 @@ class DashboardView extends GetView<DashboardController> {
     if (iconAsset != null) {
       return Image.asset(
         iconAsset,
-        width: 24,
-        height: 24,
+        width: 30,
+        height: 30,
         color: isActive ? AppColors.primary : AppColors.textLight,
       );
     }
