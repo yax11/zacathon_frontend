@@ -36,10 +36,15 @@ class OverviewView extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: Image.asset(
-              'assets/icons/fav.png',
+            child: Container(
               width: 32,
               height: 32,
+              color: AppColors.background,
+              child: Image.asset(
+                'assets/icons/fav.png',
+                width: 32,
+                height: 32,
+              ),
             ),
           ),
         ],
@@ -74,9 +79,17 @@ class OverviewView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: QuickActions(
-                onZenithToZenith: () {},
-                onZenithToOthers: () {},
-                onHistory: () {},
+                onZenithToZenith: () {
+                  Get.toNamed(AppRoutes.transfer,
+                      arguments: {'transferMode': 'zenith'});
+                },
+                onZenithToOthers: () {
+                  Get.toNamed(AppRoutes.transfer,
+                      arguments: {'transferMode': 'other'});
+                },
+                onHistory: () {
+                  Get.toNamed(AppRoutes.transactionHistory);
+                },
               ),
             ),
 
@@ -130,27 +143,7 @@ class OverviewView extends StatelessWidget {
                           icon: Icons.credit_card,
                           label: 'Cards',
                           onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.fingerprint,
-                          label: 'MyBVN',
-                          onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.schedule,
-                          label: 'Scheduled Payments',
-                          onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.lightbulb_outline,
-                          label: 'Customize',
-                          onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.settings,
-                          label: 'Settings',
-                          onTap: () {},
-                        ),
+                        )
                       ],
                     ),
                   ],

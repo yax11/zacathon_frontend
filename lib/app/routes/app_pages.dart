@@ -11,6 +11,7 @@ import '../modules/zai/bindings/zai_binding.dart';
 import '../modules/transfer/views/transfer_view.dart';
 import '../modules/bills/views/bills_view.dart';
 import '../modules/transactions/views/transaction_history_view.dart';
+import '../modules/receipt/views/receipt_view.dart';
 
 class AppPages {
   static const initial = AppRoutes.login;
@@ -55,6 +56,10 @@ class AppPages {
     GetPage(
       name: AppRoutes.transactionHistory,
       page: () => const TransactionHistoryView(),
+    ),
+    GetPage(
+      name: AppRoutes.receipt,
+      page: () => const ReceiptView(),
     ),
   ];
 }

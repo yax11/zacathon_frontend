@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_routes.dart';
 import '../../overview/views/overview_view.dart';
 import '../../airtime/views/airtime_view.dart';
 import '../../zai/views/zai_view.dart';
@@ -220,16 +221,31 @@ class _ZenAiModalState extends State<_ZenAiModal>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(width: 40),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline,
+                      color: AppColors.primary),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    Get.toNamed(AppRoutes.zai);
+                  },
+                  tooltip: 'Open Chat',
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Center(

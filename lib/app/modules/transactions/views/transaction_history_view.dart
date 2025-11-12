@@ -43,7 +43,13 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Get.back();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
@@ -64,10 +70,15 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: Image.asset(
-              'assets/icons/fav.png',
+            child: Container(
               width: 32,
               height: 32,
+              color: AppColors.background,
+              child: Image.asset(
+                'assets/icons/fav.png',
+                width: 32,
+                height: 32,
+              ),
             ),
           ),
         ],
@@ -304,6 +315,7 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

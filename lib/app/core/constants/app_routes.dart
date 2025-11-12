@@ -15,6 +15,7 @@ class AppRoutes {
   static const String transfer = '/transfer';
   static const String bills = '/bills';
   static const String transactionHistory = '/transaction-history';
+  static const String receipt = '/receipt';
 
   // Profile & Settings
   static const String profile = '/profile';

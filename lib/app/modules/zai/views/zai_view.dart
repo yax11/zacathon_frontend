@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../widgets/buttons/custom_button.dart';
+import 'package:lottie/lottie.dart';
 import '../../../core/theme/app_colors.dart';
 import '../controllers/zai_controller.dart';
 import 'voice_listening_view.dart';
+import 'package:zenith_ai/widgets/inputs/collapsible_text_input.dart';
 
 class ZaiView extends StatefulWidget {
   const ZaiView({super.key});
@@ -12,9 +13,11 @@ class ZaiView extends StatefulWidget {
   State<ZaiView> createState() => _ZaiViewState();
 }
 
-class _ZaiViewState extends State<ZaiView> {
+class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
   late TextEditingController _textController;
   late ZaiController controller;
+  late AnimationController _lottieController;
+  bool _lottieInitialized = false;
 
   @override
   void initState() {
@@ -28,50 +31,24 @@ class _ZaiViewState extends State<ZaiView> {
       // Fallback: create controller if it doesn't exist
       controller = Get.put(ZaiController(), permanent: false);
     }
+    _lottieController = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
+    _lottieController.dispose();
     _textController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('zAI Assistant'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => controller.clearChat(),
-            tooltip: 'Clear Chat',
-          ),
-        ],
+        title: const Text('zen AI'),
       ),
       body: Column(
         children: [
-          // Voice command button
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              border: Border(
-                bottom: BorderSide(color: AppColors.border),
-              ),
-            ),
-            child: CustomButton(
-              text: 'Voice Command',
-              icon: Icons.mic,
-              onPressed: () {
-                Get.to(() => const VoiceListeningView());
-              },
-              isFullWidth: true,
-            ),
-          ),
-
           // Chat messages
           Expanded(
             child: Obx(() {
@@ -151,7 +128,7 @@ class _ZaiViewState extends State<ZaiView> {
                 )
               : const SizedBox()),
 
-          // Text input
+          // Text input and animation row
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -161,38 +138,36 @@ class _ZaiViewState extends State<ZaiView> {
               ),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    decoration: InputDecoration(
-                      hintText: 'Type your message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.send, color: AppColors.primary),
-                        onPressed: () {
-                          final text = _textController.text.trim();
-                          if (text.isNotEmpty) {
-                            controller.sendTextMessage(text);
-                            _textController.clear();
-                          }
-                        },
-                      ),
+                CollapsibleTextInput(
+                  controller: _textController,
+                  onSend: (text) {
+                    controller.sendTextMessage(text);
+                    _textController.clear();
+                    FocusScope.of(context).unfocus();
+                  },
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () {
+                    Get.to(() => const VoiceListeningView());
+                  },
+                  child: SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: Lottie.asset(
+                      'assets/animations/zenAI.json',
+                      controller: _lottieController,
+                      repeat: true,
+                      onLoaded: (composition) {
+                        if (_lottieInitialized) return;
+                        _lottieInitialized = true;
+                        _lottieController
+                          ..duration = composition.duration
+                          ..repeat();
+                      },
                     ),
-                    onSubmitted: (value) {
-                      final text = value.trim();
-                      if (text.isNotEmpty) {
-                        controller.sendTextMessage(text);
-                        _textController.clear();
-                      }
-                    },
                   ),
                 ),
               ],
@@ -238,9 +213,7 @@ class _ZaiViewState extends State<ZaiView> {
             Text(
               _formatTime(message['timestamp'] as DateTime),
               style: TextStyle(
-                color: isUser
-                    ? Colors.white70
-                    : AppColors.textLight,
+                color: isUser ? Colors.white70 : AppColors.textLight,
                 fontSize: 12,
               ),
             ),

@@ -59,16 +59,25 @@ class _BalanceCardState extends State<BalanceCard> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: Image.asset(
-                widget.data.backgroundImage,
-                fit: BoxFit.cover,
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
+                child: Image.asset(
+                  widget.data.backgroundImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(color: widget.data.gradientColors.first);
+                  },
+                ),
               ),
             ),
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: widget.data.gradientColors,
+                    colors: widget.data.gradientColors
+                        .map((color) => color.withOpacity(0.85))
+                        .toList(),
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
@@ -89,7 +98,7 @@ class _BalanceCardState extends State<BalanceCard> {
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

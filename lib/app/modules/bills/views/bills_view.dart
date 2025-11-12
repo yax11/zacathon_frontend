@@ -15,7 +15,13 @@ class _BillsViewState extends State<BillsView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        Get.back();
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
@@ -36,10 +42,15 @@ class _BillsViewState extends State<BillsView> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: Image.asset(
-              'assets/icons/fav.png',
+            child: Container(
               width: 32,
               height: 32,
+              color: AppColors.background,
+              child: Image.asset(
+                'assets/icons/fav.png',
+                width: 32,
+                height: 32,
+              ),
             ),
           ),
         ],
@@ -53,12 +64,12 @@ class _BillsViewState extends State<BillsView> {
             // Bills Payment History Button
             InkWell(
               onTap: () {},
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.zero,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.background,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.zero,
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Row(
@@ -133,6 +144,7 @@ class _BillsViewState extends State<BillsView> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -148,7 +160,7 @@ class _BillsViewState extends State<BillsView> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: isSelected ? AppColors.primary : AppColors.border,
             width: isSelected ? 2 : 1,
@@ -224,7 +236,7 @@ class _BillsViewState extends State<BillsView> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: AppColors.border),
             ),
             child: Row(
