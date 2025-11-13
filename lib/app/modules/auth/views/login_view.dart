@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../widgets/buttons/custom_button.dart';
 import '../../../core/theme/app_colors.dart';
@@ -9,11 +10,79 @@ class LoginView extends GetView<AuthController> {
 
   @override
   Widget build(BuildContext context) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final rememberLogin = false.obs;
+    return _LoginViewContent(controller: controller);
+  }
+}
 
+class _LoginViewContent extends StatefulWidget {
+  final AuthController controller;
+
+  const _LoginViewContent({required this.controller});
+
+  @override
+  State<_LoginViewContent> createState() => _LoginViewContentState();
+}
+
+class _LoginViewContentState extends State<_LoginViewContent> {
+  late final TextEditingController accountNumberController;
+  late final TextEditingController passwordController;
+  final formKey = GlobalKey<FormState>();
+  final rememberLogin = false.obs;
+  Worker? _accountNumberWorker;
+
+  @override
+  void initState() {
+    super.initState();
+    accountNumberController = TextEditingController();
+    passwordController = TextEditingController();
+
+    // Listen to saved account number changes
+    _accountNumberWorker =
+        ever(widget.controller.savedAccountNumber, (String accountNumber) {
+      if (accountNumber.isNotEmpty) {
+        // Only update if field is empty or different
+        if (accountNumberController.text != accountNumber) {
+          accountNumberController.text = accountNumber;
+        }
+      }
+    });
+
+    // Check if already loaded - use multiple callbacks to ensure we catch it
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndPrefillAccountNumber();
+    });
+
+    // Also check after a short delay in case async loading is still in progress
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _checkAndPrefillAccountNumber();
+      }
+    });
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _checkAndPrefillAccountNumber();
+      }
+    });
+  }
+
+  void _checkAndPrefillAccountNumber() {
+    if (widget.controller.savedAccountNumber.value.isNotEmpty &&
+        accountNumberController.text.isEmpty) {
+      accountNumberController.text = widget.controller.savedAccountNumber.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _accountNumberWorker?.dispose();
+    accountNumberController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -60,10 +129,11 @@ class LoginView extends GetView<AuthController> {
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
-                  controller: emailController,
+                  controller: accountNumberController,
                   keyboardType: TextInputType.number,
+                  maxLength: 11,
                   decoration: const InputDecoration(
-                    hintText: '1217822311',
+                    hintText: '08012345678',
                     hintStyle:
                         TextStyle(color: Color.fromARGB(255, 190, 190, 190)),
                     border: OutlineInputBorder(),
@@ -75,10 +145,17 @@ class LoginView extends GetView<AuthController> {
                     ),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                    counterText: '',
                   ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Cannot be empty';
+                    }
+                    if (value.length != 11) {
+                      return 'Account number must be 11 digits';
                     }
                     return null;
                   },
@@ -96,7 +173,7 @@ class LoginView extends GetView<AuthController> {
                 const SizedBox(height: 8),
                 Obx(() => TextFormField(
                       controller: passwordController,
-                      obscureText: !controller.isPasswordVisible.value,
+                      obscureText: !widget.controller.isPasswordVisible.value,
                       decoration: InputDecoration(
                         hintText: 'Password',
                         hintStyle: const TextStyle(
@@ -112,16 +189,19 @@ class LoginView extends GetView<AuthController> {
                             horizontal: 16, vertical: 18),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            controller.isPasswordVisible.value
+                            widget.controller.isPasswordVisible.value
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
                           ),
-                          onPressed: controller.togglePasswordVisibility,
+                          onPressed: widget.controller.togglePasswordVisibility,
                         ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Cannot be empty';
+                        }
+                        if (value != '123456') {
+                          return 'Invalid password';
                         }
                         return null;
                       },
@@ -144,7 +224,7 @@ class LoginView extends GetView<AuthController> {
 
                 // Sign in + Fingerprint
                 Obx(() {
-                  final isDisabled = controller.isLoading.value;
+                  final isDisabled = widget.controller.isLoading.value;
                   return Row(
                     children: [
                       Expanded(
@@ -155,35 +235,39 @@ class LoginView extends GetView<AuthController> {
                               ? null
                               : () {
                                   if (formKey.currentState!.validate()) {
-                                    controller.login(
-                                      email: emailController.text.trim(),
+                                    widget.controller.login(
+                                      accountNumber:
+                                          accountNumberController.text.trim(),
                                       password: passwordController.text,
                                     );
                                   }
                                 },
-                          isLoading: controller.isLoading.value,
+                          isLoading: widget.controller.isLoading.value,
                           isFullWidth: true,
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Obx(() => controller.isBiometricAvailable.value
+                      Obx(() => widget.controller.isBiometricAvailable.value
                           ? SizedBox(
                               width: 56,
                               height: 56,
                               child: InkWell(
-                                onTap: controller.isBiometricLoading.value
-                                    ? null
-                                    : controller.loginWithBiometrics,
+                                onTap:
+                                    widget.controller.isBiometricLoading.value
+                                        ? null
+                                        : widget.controller.loginWithBiometrics,
                                 borderRadius: BorderRadius.circular(8),
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: controller.isBiometricLoading.value
+                                    color: widget
+                                            .controller.isBiometricLoading.value
                                         ? AppColors.primary.withOpacity(0.6)
                                         : AppColors.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   alignment: Alignment.center,
-                                  child: controller.isBiometricLoading.value
+                                  child: widget
+                                          .controller.isBiometricLoading.value
                                       ? const SizedBox(
                                           width: 24,
                                           height: 24,

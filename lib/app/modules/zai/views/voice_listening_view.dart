@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/theme/app_colors.dart';
 import '../controllers/zai_controller.dart';
+import 'package:zenith_ai/widgets/modals/pin_verification_bottom_sheet.dart';
+import '../../overview/controllers/overview_controller.dart';
 
 class VoiceListeningView extends StatefulWidget {
   const VoiceListeningView({super.key});
@@ -18,6 +20,7 @@ class _VoiceListeningViewState extends State<VoiceListeningView>
   late List<Animation<double>> _rippleAnimations;
 
   late ZaiController controller;
+  String? _lastShownTransactionId; // Track last shown transaction ID to prevent duplicate modals
 
   @override
   void initState() {
@@ -183,16 +186,39 @@ class _VoiceListeningViewState extends State<VoiceListeningView>
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          controller.recognizedText.value.isEmpty
-                              ? 'Say something'
-                              : controller.recognizedText.value,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        Obx(() {
+                          // Check if last message needs PIN verification
+                          if (controller.chatMessages.isNotEmpty) {
+                            final lastMessage = controller.chatMessages.last;
+                            final transactionId = lastMessage['transactionId'];
+                            if (transactionId != null && 
+                                transactionId.toString().isNotEmpty && 
+                                !lastMessage['isUser'] &&
+                                _lastShownTransactionId != transactionId.toString()) {
+                              // Mark this transaction ID as shown
+                              _lastShownTransactionId = transactionId.toString();
+                              // Show PIN verification modal after a short delay
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _showPinVerificationModal(
+                                  context: context,
+                                  transactionId: transactionId.toString(),
+                                  message: lastMessage['text'] as String? ?? 'Please verify your PIN to complete the transaction.',
+                                );
+                              });
+                            }
+                          }
+
+                          return Text(
+                            controller.recognizedText.value.isEmpty
+                                ? 'Say something'
+                                : controller.recognizedText.value,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          );
+                        }),
                       ],
                     );
                   } else {
@@ -262,6 +288,80 @@ class _VoiceListeningViewState extends State<VoiceListeningView>
         )),
       ),
     );
+  }
+
+  void _showPinVerificationModal({
+    required BuildContext context,
+    required String transactionId,
+    required String message,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (bottomSheetContext) => PinVerificationBottomSheet(
+        transactionId: transactionId,
+        message: message,
+        onVerify: (txnId, pin) async {
+          return await controller.verifyTransaction(
+            transactionId: txnId,
+            pin: pin,
+          );
+        },
+      ),
+    ).then((result) {
+      if (result != null && result['success'] == true) {
+        // Add success message to chat
+        controller.chatMessages.add({
+          'text': result['message'] as String? ?? 'Transaction completed successfully',
+          'isUser': false,
+          'timestamp': DateTime.now(),
+        });
+
+        // Refresh overview and dashboard data
+        try {
+          if (Get.isRegistered<OverviewController>()) {
+            final overviewController = Get.find<OverviewController>();
+            overviewController.refreshData();
+          }
+        } catch (e) {
+          print('Error refreshing overview: $e');
+        }
+
+        Get.snackbar(
+          'Success',
+          result['message'] as String? ?? 'Transaction completed successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primary,
+          colorText: Colors.white,
+        );
+
+        // Close voice listening view and go back
+        Get.back();
+      } else if (result != null && result['success'] == false) {
+        final errorMessage = result['message'] as String;
+        final isExpired = result['isExpired'] == true;
+
+        // Add error message to chat
+        controller.chatMessages.add({
+          'text': errorMessage,
+          'isUser': false,
+          'timestamp': DateTime.now(),
+        });
+
+        Get.snackbar(
+          isExpired ? 'Transaction Expired' : 'Error',
+          errorMessage,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+          duration: const Duration(seconds: 4),
+        );
+      }
+    });
   }
 }
 

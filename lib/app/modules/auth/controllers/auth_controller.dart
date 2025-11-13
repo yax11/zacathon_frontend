@@ -11,11 +11,26 @@ class AuthController extends GetxController {
   final isBiometricLoading = false.obs;
   final isBiometricAvailable = false.obs;
   final isPasswordVisible = false.obs;
+  final savedAccountNumber = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
     checkBiometricAvailability();
+    // Load saved account number eagerly
+    loadSavedAccountNumber();
+  }
+
+  Future<void> loadSavedAccountNumber() async {
+    try {
+      final accountNumber = await _authRepository.getSavedAccountNumber();
+      if (accountNumber != null) {
+        savedAccountNumber.value = accountNumber;
+      }
+    } catch (e) {
+      // Handle any errors gracefully
+      print('Error loading saved account number: $e');
+    }
   }
 
   Future<void> checkBiometricAvailability() async {
@@ -27,40 +42,35 @@ class AuthController extends GetxController {
   }
 
   Future<void> login({
-    required String email,
+    required String accountNumber,
     required String password,
   }) async {
     try {
       isLoading.value = true;
       
-      // Simulate API call delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Simulate login success for now (skip API call)
-      // TODO: Replace with actual API call when backend is ready
-      // final result = await _authRepository.login(
-      //   email: email,
-      //   password: password,
-      // );
+      final result = await _authRepository.login(
+        accountNumber: accountNumber,
+        password: password,
+      );
 
-      // Simulate successful login
-      Get.offAllNamed(AppRoutes.dashboard);
-      
-      // Original API code (commented out for simulation)
-      // if (result['success'] == true) {
-      //   Get.offAllNamed(AppRoutes.dashboard);
-      // } else {
-      //   Get.snackbar(
-      //     'Error',
-      //     result['message'] ?? 'Login failed',
-      //     snackPosition: SnackPosition.BOTTOM,
-      //   );
-      // }
+      if (result['success'] == true) {
+        Get.offAllNamed(AppRoutes.dashboard);
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Login failed',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+        );
+      }
     } catch (e) {
       Get.snackbar(
         'Error',
         'An error occurred: ${e.toString()}',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Get.theme.colorScheme.error,
+        colorText: Get.theme.colorScheme.onError,
       );
     } finally {
       isLoading.value = false;
@@ -112,22 +122,19 @@ class AuthController extends GetxController {
       );
 
       if (authenticated) {
-        // Simulate successful login (skip API check for now)
-        await Future.delayed(const Duration(milliseconds: 500));
-        Get.offAllNamed(AppRoutes.dashboard);
-        
-        // Original code (commented out for simulation)
-        // // Check if user data exists
-        // final user = _authRepository.getCurrentUser();
-        // if (user != null && _authRepository.isLoggedIn()) {
-        //   Get.offAllNamed(AppRoutes.dashboard);
-        // } else {
-        //   Get.snackbar(
-        //     'Error',
-        //     'Please login with your credentials first',
-        //     snackPosition: SnackPosition.BOTTOM,
-        //   );
-        // }
+        // Check if user data exists
+        final user = await _authRepository.getCurrentUser();
+        if (user != null && _authRepository.isLoggedIn()) {
+          Get.offAllNamed(AppRoutes.dashboard);
+        } else {
+          Get.snackbar(
+            'Error',
+            'Please login with your credentials first',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Get.theme.colorScheme.error,
+            colorText: Get.theme.colorScheme.onError,
+          );
+        }
       } else {
         Get.snackbar(
           'Authentication Failed',

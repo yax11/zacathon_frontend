@@ -3,10 +3,12 @@ import 'package:get/get.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import 'package:zenith_ai/widgets/transactions/recent_transactions.dart';
+import 'package:intl/intl.dart';
 import 'package:zenith_ai/widgets/overview/balance_card.dart';
 import 'package:zenith_ai/widgets/overview/quick_actions.dart';
+import '../controllers/overview_controller.dart';
 
-class OverviewView extends StatelessWidget {
+class OverviewView extends GetView<OverviewController> {
   const OverviewView({super.key});
 
   @override
@@ -49,115 +51,160 @@ class OverviewView extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: BalanceCardCarousel(
-                cards: const [
-                  BalanceCardData(
-                    balance: 27281.82,
-                    accountNumber: '8271',
-                    accountName: 'Zenith Current',
+      body: RefreshIndicator(
+        onRefresh: () => controller.refreshData(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              Obx(() {
+                if (controller.isLoading.value) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (controller.accounts.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                final cards = controller.accounts.map((account) {
+                  // Determine account type based on account number or balance
+                  final isSavings = account.accountNumber.length > 8;
+                  return BalanceCardData(
+                    balance: account.balance,
+                    accountNumber: account.accountNumber.length >= 4
+                        ? account.accountNumber
+                            .substring(account.accountNumber.length - 4)
+                        : account.accountNumber,
+                    accountName:
+                        isSavings ? 'Zenith Savings' : 'Zenith Current',
+                    gradientColors: isSavings
+                        ? [
+                            const Color.fromARGB(255, 160, 0, 0),
+                            const Color.fromARGB(255, 255, 109, 109),
+                          ]
+                        : const [
+                            Color(0xFFB80909),
+                            Color(0xFFDA1A1A),
+                          ],
+                  );
+                }).toList();
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: BalanceCardCarousel(cards: cards),
+                );
+              }),
+
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: QuickActions(
+                  onZenithToZenith: () {
+                    Get.toNamed(AppRoutes.transfer,
+                        arguments: {'transferMode': 'zenith'});
+                  },
+                  onZenithToOthers: () {
+                    Get.toNamed(AppRoutes.transfer,
+                        arguments: {'transferMode': 'other'});
+                  },
+                  onHistory: () {
+                    Get.toNamed(AppRoutes.transactionHistory);
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // eaZyLinks Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  BalanceCardData(
-                    balance: 182000.50,
-                    accountNumber: '5590',
-                    accountName: 'Zenith Savings',
-                    gradientColors: [
-                      Color.fromARGB(255, 160, 0, 0),
-                      Color.fromARGB(255, 255, 109, 109),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'eaZyLinks',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GridView.count(
+                        crossAxisCount: 4,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.75,
+                        children: [
+                          _buildEazyLinkItem(
+                            icon: Icons.qr_code_scanner,
+                            label: 'QR Payments',
+                            onTap: () {},
+                          ),
+                          _buildEazyLinkItem(
+                            icon: Icons.flight_takeoff,
+                            label: 'Travel & Leisure',
+                            onTap: () {},
+                          ),
+                          _buildEazyLinkItem(
+                            icon: Icons.tv,
+                            label: 'Cable TV',
+                            onTap: () {},
+                          ),
+                          _buildEazyLinkItem(
+                            icon: Icons.credit_card,
+                            label: 'Cards',
+                            onTap: () {},
+                          )
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: QuickActions(
-                onZenithToZenith: () {
-                  Get.toNamed(AppRoutes.transfer,
-                      arguments: {'transferMode': 'zenith'});
-                },
-                onZenithToOthers: () {
-                  Get.toNamed(AppRoutes.transfer,
-                      arguments: {'transferMode': 'other'});
-                },
-                onHistory: () {
-                  Get.toNamed(AppRoutes.transactionHistory);
-                },
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // eaZyLinks Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'eaZyLinks',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    GridView.count(
-                      crossAxisCount: 4,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.75,
-                      children: [
-                        _buildEazyLinkItem(
-                          icon: Icons.qr_code_scanner,
-                          label: 'QR Payments',
-                          onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.flight_takeoff,
-                          label: 'Travel & Leisure',
-                          onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.tv,
-                          label: 'Cable TV',
-                          onTap: () {},
-                        ),
-                        _buildEazyLinkItem(
-                          icon: Icons.credit_card,
-                          label: 'Cards',
-                          onTap: () {},
-                        )
-                      ],
-                    ),
-                  ],
                 ),
               ),
-            ),
 
-            const SizedBox(height: 24),
-            RecentTransactions(
-              onViewAll: () => Get.toNamed(AppRoutes.transactionHistory),
-            ),
+              const SizedBox(height: 24),
+              Obx(() {
+                if (controller.isLoading.value) {
+                  return const SizedBox.shrink();
+                }
 
-            const SizedBox(height: 32),
-          ],
+                // Get recent transactions (limit to 4)
+                final recentTransactions = controller.transactions
+                    .take(4)
+                    .map((tx) => TransactionItem(
+                          id: tx.id.toString(),
+                          type: tx.isCredit
+                              ? TransactionType.credit
+                              : TransactionType.debit,
+                          name: tx.receiverName,
+                          transactionType: tx.transactionType,
+                          amount: tx.amount,
+                          date: _formatDate(tx.transactionDate),
+                        ))
+                    .toList();
+
+                return RecentTransactions(
+                  transactions: recentTransactions,
+                  onViewAll: () => Get.toNamed(AppRoutes.transactionHistory),
+                );
+              }),
+
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
@@ -381,5 +428,9 @@ class OverviewView extends StatelessWidget {
       ),
       onTap: onTap,
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('dd MMMM, yyyy').format(date);
   }
 }

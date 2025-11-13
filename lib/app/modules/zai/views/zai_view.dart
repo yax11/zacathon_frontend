@@ -5,6 +5,9 @@ import '../../../core/theme/app_colors.dart';
 import '../controllers/zai_controller.dart';
 import 'voice_listening_view.dart';
 import 'package:zenith_ai/widgets/inputs/collapsible_text_input.dart';
+import 'package:zenith_ai/widgets/modals/pin_verification_bottom_sheet.dart';
+import '../../overview/controllers/overview_controller.dart';
+import '../../../data/services/tts/google_tts_service.dart';
 
 class ZaiView extends StatefulWidget {
   const ZaiView({super.key});
@@ -17,12 +20,19 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
   late TextEditingController _textController;
   late ZaiController controller;
   late AnimationController _lottieController;
+  late GoogleTtsService _ttsService;
+  late Worker _chatMessagesWorker;
+  late ScrollController _scrollController;
   bool _lottieInitialized = false;
+  String?
+      _lastShownTransactionId; // Track last shown transaction ID to prevent duplicate modals
+  String? _lastSpokenMessageKey;
 
   @override
   void initState() {
     super.initState();
     _textController = TextEditingController();
+    _scrollController = ScrollController();
     // Get the controller - it should be initialized by dashboard binding
     // Use try-catch to handle any edge cases
     try {
@@ -31,14 +41,59 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
       // Fallback: create controller if it doesn't exist
       controller = Get.put(ZaiController(), permanent: false);
     }
+
+    try {
+      _ttsService = Get.find<GoogleTtsService>();
+    } catch (e) {
+      _ttsService = Get.put(GoogleTtsService(), permanent: true);
+    }
+
+    _chatMessagesWorker = ever<List<Map<String, dynamic>>>(
+      controller.chatMessages,
+      (messages) {
+        if (messages.isEmpty) return;
+        final lastMessage = messages.last;
+        final text = (lastMessage['text'] as String?)?.trim() ?? '';
+        final isUser = lastMessage['isUser'] == true;
+        final timestamp = lastMessage['timestamp'];
+        final messageKey = timestamp is DateTime
+            ? '${text}_${timestamp.millisecondsSinceEpoch}_${isUser ? 1 : 0}'
+            : '${text}_${isUser ? 1 : 0}';
+
+        if (text.isNotEmpty && !isUser) {
+          if (_lastSpokenMessageKey != messageKey) {
+            _lastSpokenMessageKey = messageKey;
+            _ttsService.speak(text);
+          }
+        }
+
+        _scrollToBottom();
+      },
+    );
+
     _lottieController = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
+    _chatMessagesWorker.dispose();
     _lottieController.dispose();
     _textController.dispose();
+    _scrollController.dispose();
+    _ttsService.stop();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final position = _scrollController.position.maxScrollExtent;
+      _scrollController.animateTo(
+        position,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
@@ -92,12 +147,33 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
                 );
               }
 
+              // Check if last message needs PIN verification
+              final lastMessage = controller.chatMessages.last;
+              final transactionId = lastMessage['transactionId'];
+              if (transactionId != null &&
+                  transactionId.toString().isNotEmpty &&
+                  !lastMessage['isUser'] &&
+                  _lastShownTransactionId != transactionId.toString()) {
+                // Mark this transaction ID as shown
+                _lastShownTransactionId = transactionId.toString();
+                // Show PIN verification modal after a short delay
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _showPinVerificationModal(
+                    context: context,
+                    transactionId: transactionId.toString(),
+                    message: lastMessage['text'] as String? ??
+                        'Please verify your PIN to complete the transaction.',
+                  );
+                });
+              }
+
               return ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(16),
                 itemCount: controller.chatMessages.length,
                 itemBuilder: (context, index) {
                   final message = controller.chatMessages[index];
-                  return _buildMessageBubble(message);
+                  return _buildMessageBubble(context, message);
                 },
               );
             }),
@@ -178,9 +254,12 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
+  Widget _buildMessageBubble(BuildContext context, Map<String, dynamic> message) {
     final isUser = message['isUser'] as bool;
     final text = message['text'] as String;
+    final transactionId = message['transactionId'];
+    final hasTransactionId =
+        transactionId != null && transactionId.toString().isNotEmpty;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -195,9 +274,12 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
             bottomLeft: Radius.circular(isUser ? 16 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
+          border: hasTransactionId && !isUser
+              ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1)
+              : null,
         ),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(Get.context!).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,6 +291,69 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
                 fontSize: 16,
               ),
             ),
+            if (hasTransactionId && !isUser) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 14,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'PIN verification required',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (!isUser) ...[
+              const SizedBox(height: 8),
+              Obx(() {
+                final isSpeaking = _ttsService.isSpeaking.value &&
+                    _ttsService.currentText.value == text;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (isSpeaking) ...[
+                      SizedBox(
+                        width: 60,
+                        height: 28,
+                        child: Lottie.asset(
+                          'assets/animations/wave-voice.json',
+                          repeat: true,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: _ttsService.stop,
+                        icon: const Icon(Icons.stop, size: 16),
+                        label: const Text('Stop'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(0, 32),
+                        ),
+                      ),
+                    ] else
+                      IconButton(
+                        icon: const Icon(
+                          Icons.volume_up,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        onPressed: () => _ttsService.speak(text),
+                        tooltip: 'Play response',
+                      ),
+                  ],
+                );
+              }),
+            ],
             const SizedBox(height: 4),
             Text(
               _formatTime(message['timestamp'] as DateTime),
@@ -229,5 +374,77 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     return '$displayHour:$minute $period';
+  }
+
+  void _showPinVerificationModal({
+    required BuildContext context,
+    required String transactionId,
+    required String message,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (bottomSheetContext) => PinVerificationBottomSheet(
+        transactionId: transactionId,
+        message: message,
+        onVerify: (txnId, pin) async {
+          return await controller.verifyTransaction(
+            transactionId: txnId,
+            pin: pin,
+          );
+        },
+      ),
+    ).then((result) {
+      if (result != null && result['success'] == true) {
+        // Add success message to chat
+        controller.chatMessages.add({
+          'text': result['message'] as String? ??
+              'Transaction completed successfully',
+          'isUser': false,
+          'timestamp': DateTime.now(),
+        });
+
+        // Refresh overview and dashboard data
+        try {
+          if (Get.isRegistered<OverviewController>()) {
+            final overviewController = Get.find<OverviewController>();
+            overviewController.refreshData();
+          }
+        } catch (e) {
+          print('Error refreshing overview: $e');
+        }
+
+        Get.snackbar(
+          'Success',
+          result['message'] as String? ?? 'Transaction completed successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: AppColors.primary,
+          colorText: Colors.white,
+        );
+      } else if (result != null && result['success'] == false) {
+        final errorMessage = result['message'] as String;
+        final isExpired = result['isExpired'] == true;
+
+        // Add error message to chat
+        controller.chatMessages.add({
+          'text': errorMessage,
+          'isUser': false,
+          'timestamp': DateTime.now(),
+        });
+
+        Get.snackbar(
+          isExpired ? 'Transaction Expired' : 'Error',
+          errorMessage,
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Get.theme.colorScheme.error,
+          colorText: Get.theme.colorScheme.onError,
+          duration: const Duration(seconds: 4),
+        );
+      }
+    });
   }
 }

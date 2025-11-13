@@ -1,57 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/utils/helpers.dart';
+import '../../overview/controllers/overview_controller.dart';
 
-class TransactionHistoryView extends StatefulWidget {
+class TransactionHistoryView extends GetView<OverviewController> {
   const TransactionHistoryView({super.key});
 
   @override
-  State<TransactionHistoryView> createState() => _TransactionHistoryViewState();
-}
-
-class _TransactionHistoryViewState extends State<TransactionHistoryView> {
-  bool _isBalanceVisible = false;
-
-  final List<Map<String, dynamic>> _transactions = [
-    {
-      'date': '11-11-2025',
-      'description': 'NIP/TIPAY/Paystack/PSST10ihqE9vxuub071543487',
-      'amount': 492.50,
-      'type': 'credit',
-    },
-    {
-      'date': '10-11-2025',
-      'description': 'CHARGE + VAT',
-      'amount': 10.75,
-      'type': 'debit',
-    },
-    {
-      'date': '10-11-2025',
-      'description': 'CIP/CR/INTB/TITUS TUKURAH YAKUBU/OPAY/ 000015251110071220957170943064/Done/ CHA5670062807',
-      'amount': 1000.00,
-      'type': 'debit',
-    },
-    {
-      'date': '10-11-2025',
-      'description': 'NIP/TIPAY/Paystack/PSST10ihqE9vxuub071543487',
-      'amount': 985.00,
-      'type': 'credit',
-    },
-  ];
-
-  @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvoked: (didPop) {
-        if (didPop) return;
-        Get.back();
-      },
-      child: Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
+    // Refresh user data when view is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.refreshData();
+    });
+
+    bool _isBalanceVisible = false;
+    
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return PopScope(
+          canPop: false,
+          onPopInvoked: (didPop) {
+            if (didPop) return;
+            Get.back();
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.backgroundLight,
+            appBar: AppBar(
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
@@ -83,8 +60,8 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
           ),
         ],
       ),
-      drawer: _buildDrawer(context),
-      body: SingleChildScrollView(
+            drawer: _buildDrawer(context),
+            body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -101,22 +78,30 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            '1217822311 - ACTIVE',
-                            style: TextStyle(
-                              color: AppColors.textWhite,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          Obx(() {
+                            final accountNumber = controller.user.value?.accountNumber ?? '';
+                            return Text(
+                              accountNumber.isNotEmpty
+                                  ? '$accountNumber - ACTIVE'
+                                  : 'Loading...',
+                              style: const TextStyle(
+                                color: AppColors.textWhite,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            );
+                          }),
                           const SizedBox(height: 8),
-                          const Text(
-                            'FINNSTART INNOVATION LAB',
-                            style: TextStyle(
-                              color: AppColors.textWhite,
-                              fontSize: 14,
-                            ),
-                          ),
+                          Obx(() {
+                            final customerName = controller.user.value?.customerName ?? '';
+                            return Text(
+                              customerName.isNotEmpty ? customerName : 'Loading...',
+                              style: const TextStyle(
+                                color: AppColors.textWhite,
+                                fontSize: 14,
+                              ),
+                            );
+                          }),
                         ],
                       ),
                       Row(
@@ -149,14 +134,19 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            _isBalanceVisible ? '₦ 27,281.82' : '₦ ******',
-                            style: const TextStyle(
-                              color: AppColors.textWhite,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          Obx(() {
+                            final balance = controller.user.value?.totalBalance ?? 0;
+                            return Text(
+                              _isBalanceVisible
+                                  ? Helpers.formatCurrency(balance)
+                                  : '₦ ******',
+                              style: const TextStyle(
+                                color: AppColors.textWhite,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          }),
                           const SizedBox(height: 4),
                           const Text(
                             'Ledger Balance: Hidden',
@@ -233,90 +223,114 @@ class _TransactionHistoryViewState extends State<TransactionHistoryView> {
             ),
 
             // Transactions List
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              itemCount: _transactions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final transaction = _transactions[index];
-                final isCredit = transaction['type'] == 'credit';
-                final barColor = isCredit ? AppColors.success : AppColors.error;
-                final amountColor = isCredit ? AppColors.success : AppColors.error;
-                final amountPrefix = isCredit ? '+' : '-';
+            Obx(() {
+              if (controller.isLoading.value) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.background,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.border.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        decoration: BoxDecoration(
-                          color: barColor,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                            bottomLeft: Radius.circular(12),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                transaction['date'] as String,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                transaction['description'] as String,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '$amountPrefix ₦ ${Helpers.formatCurrency(transaction['amount'] as double, showSymbol: false)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: amountColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+              if (controller.transactions.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      'No transactions found',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ),
                 );
-              },
+              }
+
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: controller.transactions.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final transaction = controller.transactions[index];
+                  final isCredit = transaction.isCredit;
+                  final barColor = isCredit ? AppColors.success : AppColors.error;
+                  final amountColor = isCredit ? AppColors.success : AppColors.error;
+                  final amountPrefix = isCredit ? '+' : '-';
+                  final dateFormat = DateFormat('dd-MM-yyyy');
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.border.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          decoration: BoxDecoration(
+                            color: barColor,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              bottomLeft: Radius.circular(12),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  dateFormat.format(transaction.transactionDate),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  transaction.receiverName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '$amountPrefix ₦ ${Helpers.formatCurrency(transaction.amount, showSymbol: false)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: amountColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            }),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -5,10 +5,12 @@ import '../modules/auth/views/login_view.dart';
 import '../modules/dashboard/bindings/dashboard_binding.dart';
 import '../modules/dashboard/views/dashboard_view.dart';
 import '../modules/overview/views/overview_view.dart';
+import '../modules/overview/bindings/overview_binding.dart';
 import '../modules/airtime/views/airtime_view.dart';
 import '../modules/zai/views/zai_view.dart';
 import '../modules/zai/bindings/zai_binding.dart';
 import '../modules/transfer/views/transfer_view.dart';
+import '../modules/transfer/bindings/transfer_binding.dart';
 import '../modules/bills/views/bills_view.dart';
 import '../modules/transactions/views/transaction_history_view.dart';
 import '../modules/receipt/views/receipt_view.dart';
@@ -35,6 +37,7 @@ class AppPages {
     GetPage(
       name: AppRoutes.overview,
       page: () => const OverviewView(),
+      binding: OverviewBinding(),
     ),
     GetPage(
       name: AppRoutes.airtime,
@@ -48,6 +51,7 @@ class AppPages {
     GetPage(
       name: AppRoutes.transfer,
       page: () => const TransferView(),
+      binding: TransferBinding(),
     ),
     GetPage(
       name: AppRoutes.bills,

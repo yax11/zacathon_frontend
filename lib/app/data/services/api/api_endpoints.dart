@@ -1,5 +1,6 @@
 class ApiEndpoints {
   // Auth Endpoints
+  static const String validatePhoneNumber = '/validate-phone-number';
   static const String login = '/auth/login';
   static const String register = '/auth/register';
   static const String logout = '/auth/logout';
@@ -15,7 +16,10 @@ class ApiEndpoints {
 
   // Transfer Endpoints
   static const String transfer = '/transfer';
+  static const String manualTransfer = '/manual-transfer';
+  static const String verifyTransaction = '/verify-transaction';
   static const String verifyAccount = '/transfer/verify-account';
+  static const String accountVerification = '/account-verification';
 
   // Airtime Endpoints
   static const String purchaseAirtime = '/airtime/purchase';
@@ -27,5 +31,6 @@ class ApiEndpoints {
   // zAI Endpoints
   static const String zaiChat = '/zai/chat';
   static const String zaiHistory = '/zai/history';
+  static const String voiceAssistant = '/message';
 }
 

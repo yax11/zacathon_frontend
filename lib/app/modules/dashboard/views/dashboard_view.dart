@@ -4,11 +4,14 @@ import 'package:lottie/lottie.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../overview/views/overview_view.dart';
+import '../../overview/controllers/overview_controller.dart';
 import '../../airtime/views/airtime_view.dart';
 import '../../zai/views/zai_view.dart';
 import '../../transfer/views/transfer_view.dart';
 import '../../bills/views/bills_view.dart';
 import '../controllers/dashboard_controller.dart';
+import '../../../data/services/tts/google_tts_service.dart';
+import '../../../../widgets/icons/huge_icon_compat.dart';
 
 class DashboardView extends GetView<DashboardController> {
   const DashboardView({super.key});
@@ -28,6 +31,16 @@ class DashboardView extends GetView<DashboardController> {
           ),
           bottomNavigationBar: _buildBottomNavigationBar(context),
         ));
+  }
+
+  // Method to refresh current tab
+  void refreshCurrentTab() {
+    if (controller.currentIndex.value == 0) {
+      // Refresh overview if it's the current tab
+      if (Get.isRegistered<OverviewController>()) {
+        Get.find<OverviewController>().refreshData();
+      }
+    }
   }
 
   Widget _buildBottomNavigationBar(BuildContext context) {
@@ -67,7 +80,8 @@ class DashboardView extends GetView<DashboardController> {
         items: controller.menuItems.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
-          final iconAsset = item['iconAsset'] as String?;
+          final List<List<dynamic>>? hugeIcon =
+              item['hugeIcon'] as List<List<dynamic>>?;
           final iconData = item['iconData'] as IconData?;
 
           // Special circular primary background for the middle zAI icon
@@ -107,12 +121,12 @@ class DashboardView extends GetView<DashboardController> {
             icon: index == 2
                 ? buildZaiIcon()
                 : _buildMenuIcon(
-                    iconAsset: iconAsset, iconData: iconData, isActive: false),
+                    hugeIcon: hugeIcon, iconData: iconData, isActive: false),
             label: index == 2 ? '' : item['title'] as String,
             activeIcon: index == 2
                 ? buildZaiIcon()
                 : _buildMenuIcon(
-                    iconAsset: iconAsset, iconData: iconData, isActive: true),
+                    hugeIcon: hugeIcon, iconData: iconData, isActive: true),
           );
         }).toList(),
       ),
@@ -132,21 +146,27 @@ class DashboardView extends GetView<DashboardController> {
   }
 
   Widget _buildMenuIcon({
-    String? iconAsset,
+    List<List<dynamic>>? hugeIcon,
     IconData? iconData,
     required bool isActive,
   }) {
-    if (iconAsset != null) {
-      return Image.asset(
-        iconAsset,
-        width: 30,
-        height: 30,
-        color: isActive ? AppColors.primary : AppColors.textLight,
+    final color = isActive ? AppColors.primary : AppColors.textLight;
+    if (hugeIcon != null) {
+      return HugeIconCompat(
+        icon: hugeIcon,
+        color: color,
+        size: 26,
+      );
+    }
+    if (iconData != null) {
+      return Icon(
+        iconData,
+        color: color,
       );
     }
     return Icon(
-      iconData ?? Icons.circle,
-      color: isActive ? AppColors.primary : AppColors.textLight,
+      Icons.circle,
+      color: color,
     );
   }
 }
@@ -164,8 +184,11 @@ class _ZenAiModalState extends State<_ZenAiModal>
     with SingleTickerProviderStateMixin {
   late final AnimationController _lottieController;
   late final Worker _listeningWorker;
+  late final Worker _responseWorker;
   bool _introCompleted = false;
   bool _lottieInitialized = false;
+  final GoogleTtsService _ttsService = Get.find<GoogleTtsService>();
+  String? _lastSpokenResponse;
 
   DashboardController get _controller => widget.controller;
 
@@ -186,11 +209,28 @@ class _ZenAiModalState extends State<_ZenAiModal>
             duration: const Duration(milliseconds: 300));
       }
     });
+    // Listen for AI response changes and speak them
+    _responseWorker = ever<String>(_controller.aiResponse, (response) {
+      if (response.isNotEmpty && response != _lastSpokenResponse) {
+        _lastSpokenResponse = response;
+        _speakResponse(response);
+      }
+    });
+  }
+
+  Future<void> _speakResponse(String text) async {
+    await _ttsService.speak(text);
+  }
+
+  Future<void> _stopSpeaking() async {
+    await _ttsService.stop();
   }
 
   @override
   void dispose() {
     _listeningWorker.dispose();
+    _responseWorker.dispose();
+    _ttsService.stop();
     _lottieController.dispose();
     super.dispose();
   }
@@ -292,10 +332,111 @@ class _ZenAiModalState extends State<_ZenAiModal>
                     child: Text(
                       _controller.isListening.value
                           ? 'Listening...'
-                          : 'Tap to speak.',
+                          : (_controller.isProcessing.value
+                              ? 'Processing...'
+                              : 'Tap to speak.'),
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   )),
+              // Display recognized text
+              Obx(() {
+                if (_controller.recognizedText.value.isNotEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundLight,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'You said: ${_controller.recognizedText.value}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
+              // Display AI response
+              Obx(() {
+                if (_controller.aiResponse.value.isNotEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Obx(() {
+                      final isSpeaking = _ttsService.isSpeaking.value;
+                      return Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.primary.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _controller.aiResponse.value,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (isSpeaking)
+                                  SizedBox(
+                                    width: 60,
+                                    height: 28,
+                                    child: Lottie.asset(
+                                      'assets/animations/wave-voice.json',
+                                      repeat: true,
+                                    ),
+                                  )
+                                else
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.volume_up,
+                                      size: 20,
+                                      color: AppColors.primary,
+                                    ),
+                                    onPressed: () => _speakResponse(
+                                        _controller.aiResponse.value),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (isSpeaking)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: TextButton.icon(
+                                onPressed: _stopSpeaking,
+                                icon: const Icon(Icons.stop, size: 16),
+                                label: const Text('Stop'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    }),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
             ] else ...[
               const SizedBox(height: 12),
               const Center(

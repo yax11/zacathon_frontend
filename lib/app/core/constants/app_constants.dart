@@ -1,6 +1,7 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'https://api.zenithbank.com'; // Replace with actual API URL
+  static const String baseUrl =
+      'https://personalize-production-8a33.up.railway.app'; // Default fallback URL
   static const String apiVersion = '/api/v1';
   static const int connectTimeout = 30000; // 30 seconds
   static const int receiveTimeout = 30000; // 30 seconds
@@ -27,4 +28,3 @@ class AppConstants {
   static const String currency = '₦';
   static const String currencyCode = 'NGN';
 }
-

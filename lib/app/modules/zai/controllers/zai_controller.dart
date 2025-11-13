@@ -1,9 +1,16 @@
 import 'package:get/get.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import '../../../data/services/api/api_client.dart' show ApiClient, ApiException;
+import '../../../data/services/api/api_endpoints.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../core/constants/app_constants.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ZaiController extends GetxController {
   final stt.SpeechToText _speech = stt.SpeechToText();
+  final ApiClient _apiClient = ApiClient();
+  final AuthRepository _authRepository = AuthRepository();
   
   final isListening = false.obs;
   final isRecording = false.obs;
@@ -90,8 +97,8 @@ class ZaiController extends GetxController {
       'timestamp': DateTime.now(),
     });
 
-    // Simulate AI response
-    _simulateAIResponse(command);
+    // Process voice command
+    processVoiceMessage(command);
   }
 
   void sendTextMessage(String text) {
@@ -104,41 +111,205 @@ class ZaiController extends GetxController {
       'timestamp': DateTime.now(),
     });
 
-    _simulateAIResponse(text);
+    processVoiceMessage(text);
   }
 
-  void _simulateAIResponse(String userMessage) {
+  Future<void> processVoiceMessage(String userMessage) async {
     isProcessing.value = true;
 
-    // Simulate API delay
-    Future.delayed(const Duration(seconds: 1), () {
-      String response = _generateMockResponse(userMessage);
+    try {
+      // Get user's phone number
+      final user = await _authRepository.getCurrentUser();
+      if (user == null) {
+        chatMessages.add({
+          'text': 'User not found. Please login again.',
+          'isUser': false,
+          'timestamp': DateTime.now(),
+        });
+        isProcessing.value = false;
+        return;
+      }
+
+      // Get base URL for logging
+      String baseUrl;
+      try {
+        baseUrl = dotenv.env['BASE_URL'] ?? AppConstants.baseUrl;
+      } catch (e) {
+        baseUrl = AppConstants.baseUrl;
+      }
+      final apiBaseUrl = baseUrl.endsWith('/') ? '${baseUrl}api' : '$baseUrl/api';
+      final fullUrl = '$apiBaseUrl${ApiEndpoints.voiceAssistant}';
+
+      // Log API request
+      print('=== Voice Assistant Request ===');
+      print('Method: POST');
+      print('Full URL: $fullUrl');
+      print('Request Data: {phoneNumber: ${user.phoneNumber}, message: $userMessage}');
+      print('===============================');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.voiceAssistant,
+        data: {
+          'phoneNumber': user.phoneNumber,
+          'message': userMessage,
+        },
+      );
+
+      // Log API response
+      print('=== Voice Assistant Response ===');
+      print('Status Code: ${response.statusCode}');
+      print('Response Data: ${response.data}');
+      print('================================');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final success = data['success'] ?? false;
+        final responseText = data['response'] ?? '';
+        final transactionId = data['transactionId'];
+        final action = data['action'];
+
+        if (success) {
+          // Store response data for PIN verification if needed
+          final responseData = {
+            'text': responseText,
+            'isUser': false,
+            'timestamp': DateTime.now(),
+            'transactionId': transactionId,
+            'action': action,
+            'data': data['data'],
+          };
+
+          chatMessages.add(responseData);
+
+          // If transactionId exists, trigger PIN verification callback
+          if (transactionId != null && transactionId.toString().isNotEmpty) {
+            // Notify listeners that PIN verification is needed
+            // The view will handle showing the PIN modal
+            Get.rawSnackbar(
+              message: 'PIN verification required',
+              duration: const Duration(seconds: 2),
+            );
+          }
+        } else {
+          chatMessages.add({
+            'text': responseText.isNotEmpty ? responseText : 'An error occurred. Please try again.',
+            'isUser': false,
+            'timestamp': DateTime.now(),
+          });
+        }
+      }
+    } on ApiException catch (e) {
+      print('=== Voice Assistant Exception ===');
+      print('Message: ${e.message}');
+      print('Status Code: ${e.statusCode}');
+      print('=================================');
       chatMessages.add({
-        'text': response,
+        'text': e.message,
         'isUser': false,
         'timestamp': DateTime.now(),
       });
+    } catch (e) {
+      print('=== Voice Assistant Error ===');
+      print('Error: ${e.toString()}');
+      print('==============================');
+      chatMessages.add({
+        'text': 'An error occurred: ${e.toString()}',
+        'isUser': false,
+        'timestamp': DateTime.now(),
+      });
+    } finally {
       isProcessing.value = false;
-    });
+    }
   }
 
-  String _generateMockResponse(String userMessage) {
-    final message = userMessage.toLowerCase();
-    
-    if (message.contains('balance') || message.contains('account')) {
-      return 'Your account balance is ₦*****. To view your full balance, please enable "Show balance" in your account settings.';
-    } else if (message.contains('transfer') || message.contains('send money')) {
-      return 'I can help you transfer money. Please navigate to the Transfer section or tell me the amount and recipient details.';
-    } else if (message.contains('bills') || message.contains('pay')) {
-      return 'I can assist you with bill payments. Please navigate to the Bills section or tell me which bill you want to pay.';
-    } else if (message.contains('airtime') || message.contains('data')) {
-      return 'I can help you purchase airtime or data. Please navigate to the Airtime section or tell me the amount you need.';
-    } else if (message.contains('hello') || message.contains('hi')) {
-      return 'Hello! I\'m your Zenith AI assistant. How can I help you with your banking needs today?';
-    } else if (message.contains('help')) {
-      return 'I can help you with:\n• Check account balance\n• Transfer money\n• Pay bills\n• Purchase airtime/data\n• Answer banking questions\n\nWhat would you like to do?';
-    } else {
-      return 'I understand you said: "$userMessage". I\'m here to help with your banking needs. You can ask me about your balance, transfers, bills, or airtime.';
+  Future<Map<String, dynamic>> verifyTransaction({
+    required String transactionId,
+    required String pin,
+  }) async {
+    try {
+      // Get user's phone number
+      final user = await _authRepository.getCurrentUser();
+      if (user == null) {
+        return {
+          'success': false,
+          'message': 'User not found. Please login again.',
+        };
+      }
+
+      // Get base URL for logging
+      String baseUrl;
+      try {
+        baseUrl = dotenv.env['BASE_URL'] ?? AppConstants.baseUrl;
+      } catch (e) {
+        baseUrl = AppConstants.baseUrl;
+      }
+      final apiBaseUrl = baseUrl.endsWith('/') ? '${baseUrl}api' : '$baseUrl/api';
+      final fullUrl = '$apiBaseUrl${ApiEndpoints.verifyTransaction}';
+
+      // Log API request
+      print('=== Verify Transaction Request (from ZAI) ===');
+      print('Method: POST');
+      print('Full URL: $fullUrl');
+      print('Request Data: {phoneNumber: ${user.phoneNumber}, transactionId: $transactionId, pin: ***}');
+      print('==============================================');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.verifyTransaction,
+        data: {
+          'phoneNumber': user.phoneNumber,
+          'transactionId': transactionId,
+          'pin': pin,
+        },
+      );
+
+      // Log API response
+      print('=== Verify Transaction Response (from ZAI) ===');
+      print('Status Code: ${response.statusCode}');
+      print('Response Data: ${response.data}');
+      print('===============================================');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        final success = data['success'] ?? false;
+
+        if (success) {
+          return {
+            'success': true,
+            'message': data['response'] ?? data['message'] ?? 'Transaction verified successfully',
+          };
+        }
+      }
+
+      // Handle 404 or other errors
+      final errorMessage = response.data['message'] ??
+          response.data['error'] ??
+          'Transaction verification failed';
+
+      return {
+        'success': false,
+        'message': errorMessage,
+        'isExpired': response.statusCode == 404 ||
+            errorMessage.toLowerCase().contains('expired'),
+      };
+    } on ApiException catch (e) {
+      print('=== Verify Transaction Exception (from ZAI) ===');
+      print('Message: ${e.message}');
+      print('Status Code: ${e.statusCode}');
+      print('==============================================');
+      return {
+        'success': false,
+        'message': e.message,
+        'isExpired': e.statusCode == 404 ||
+            e.message.toLowerCase().contains('expired'),
+      };
+    } catch (e) {
+      print('=== Verify Transaction Error (from ZAI) ===');
+      print('Error: ${e.toString()}');
+      print('============================================');
+      return {
+        'success': false,
+        'message': 'An error occurred: ${e.toString()}',
+      };
     }
   }
 

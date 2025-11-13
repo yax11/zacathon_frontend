@@ -49,12 +49,18 @@ class _CollapsibleTextInputState extends State<CollapsibleTextInput>
       ),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(
-              _isCollapsed ? Icons.chevron_right : Icons.chevron_left,
-              color: AppColors.textSecondary,
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              iconSize: 24,
+              icon: Icon(
+                _isCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                color: AppColors.textSecondary,
+              ),
+              onPressed: _toggle,
             ),
-            onPressed: _toggle,
           ),
           if (!_isCollapsed)
             Expanded(
@@ -75,9 +81,15 @@ class _CollapsibleTextInputState extends State<CollapsibleTextInput>
               ),
             ),
           if (!_isCollapsed)
-            IconButton(
-              icon: const Icon(Icons.send, color: AppColors.primary),
-              onPressed: _handleSend,
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                iconSize: 22,
+                icon: const Icon(Icons.send, color: AppColors.primary),
+                onPressed: _handleSend,
+              ),
             ),
         ],
       ),
