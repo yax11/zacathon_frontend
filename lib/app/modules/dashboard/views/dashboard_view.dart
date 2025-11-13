@@ -12,6 +12,7 @@ import '../../bills/views/bills_view.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../../data/services/tts/google_tts_service.dart';
 import '../../../../widgets/icons/huge_icon_compat.dart';
+import '../../../core/utils/text_helpers.dart';
 
 class DashboardView extends GetView<DashboardController> {
   const DashboardView({super.key});
@@ -385,7 +386,8 @@ class _ZenAiModalState extends State<_ZenAiModal>
                               children: [
                                 Expanded(
                                   child: Text(
-                                    _controller.aiResponse.value,
+                                    TextHelpers.stripSsmlForDisplay(
+                                        _controller.aiResponse.value),
                                     style: const TextStyle(
                                       color: AppColors.textPrimary,
                                       fontSize: 14,

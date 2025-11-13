@@ -6,6 +6,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
+import 'package:html_unescape/html_unescape.dart';
 
 class GoogleTtsService extends GetxService {
   GoogleTtsService();
@@ -41,7 +42,9 @@ class GoogleTtsService extends GetxService {
   }
 
   Future<void> speak(String text) async {
-    final trimmed = text.trim();
+    final unescape = HtmlUnescape();
+    final normalized = unescape.convert(text);
+    final trimmed = normalized.trim();
     if (trimmed.isEmpty) {
       return;
     }
@@ -66,11 +69,20 @@ class GoogleTtsService extends GetxService {
       _currentText = trimmed;
       currentText.value = trimmed;
 
+      final isSsml = trimmed.startsWith('<speak');
+      final inputPayload = isSsml
+          ? {
+              'ssml': trimmed,
+            }
+          : {
+              'text': trimmed,
+            };
+
       final response = await _dio.post(
         'text:synthesize',
         queryParameters: {'key': apiKey},
         data: {
-          'input': {'text': trimmed},
+          'input': inputPayload,
           'voice': {
             'languageCode': 'en-US',
             'name': 'en-US-Neural2-C',

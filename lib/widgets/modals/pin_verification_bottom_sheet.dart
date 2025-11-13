@@ -38,7 +38,11 @@ class _PinVerificationBottomSheetState extends State<PinVerificationBottomSheet>
         });
 
         if (result['success'] == true) {
-          Navigator.pop(context, result);
+          // Close immediately on success
+          if (mounted) {
+            Navigator.pop(context, result);
+          }
+          return;
         } else {
           setState(() {
             _errorMessage = result['message'] as String?;

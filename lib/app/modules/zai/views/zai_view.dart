@@ -3,11 +3,11 @@ import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
 import '../../../core/theme/app_colors.dart';
 import '../controllers/zai_controller.dart';
-import 'voice_listening_view.dart';
 import 'package:zenith_ai/widgets/inputs/collapsible_text_input.dart';
 import 'package:zenith_ai/widgets/modals/pin_verification_bottom_sheet.dart';
 import '../../overview/controllers/overview_controller.dart';
 import '../../../data/services/tts/google_tts_service.dart';
+import '../../../core/utils/text_helpers.dart';
 
 class ZaiView extends StatefulWidget {
   const ZaiView({super.key});
@@ -84,6 +84,24 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _toggleListening() async {
+    if (controller.isListening.value) {
+      await controller.stopListening();
+    } else {
+      _ttsService.stop();
+      await controller.startListening();
+    }
+  }
+
+  Future<void> _stopAudioAndListening() async {
+    if (controller.isListening.value) {
+      await controller.stopListening();
+    }
+    if (_ttsService.isSpeaking.value) {
+      await _ttsService.stop();
+    }
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
@@ -101,6 +119,58 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(
         title: const Text('zen AI'),
+        actions: [
+          Obx(() {
+            final isListening = controller.isListening.value;
+            final isProcessing = controller.isProcessing.value;
+            final isSpeaking = _ttsService.isSpeaking.value;
+
+            IconData icon;
+            String tooltip;
+            VoidCallback onPressed;
+
+            if (isListening) {
+              icon = Icons.mic_off;
+              tooltip = 'Stop listening';
+              onPressed = () => controller.stopListening();
+            } else if (isSpeaking) {
+              icon = Icons.pause_circle_filled;
+              tooltip = 'Stop audio';
+              onPressed = () => _ttsService.stop();
+            } else if (isProcessing) {
+              icon = Icons.pause_circle_outline;
+              tooltip = 'Cancel processing';
+              onPressed = _stopAudioAndListening;
+            } else {
+              icon = Icons.play_circle_fill;
+              tooltip = 'Start listening';
+              onPressed = _toggleListening;
+            }
+
+            return Row(
+              children: [
+                if (isListening)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Text(
+                      'Listening...',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                IconButton(
+                  icon: Icon(icon, color: Colors.white),
+                  tooltip: tooltip,
+                  onPressed: onPressed,
+                ),
+              ],
+            );
+          }),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -213,25 +283,16 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
                 top: BorderSide(color: AppColors.border),
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CollapsibleTextInput(
-                  controller: _textController,
-                  onSend: (text) {
-                    controller.sendTextMessage(text);
-                    _textController.clear();
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-                const SizedBox(width: 16),
-                GestureDetector(
-                  onTap: () {
-                    Get.to(() => const VoiceListeningView());
-                  },
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final availableWidth = constraints.maxWidth;
+                final showCompactLayout = availableWidth < 380;
+
+                Widget controls = GestureDetector(
+                  onTap: _toggleListening,
                   child: SizedBox(
-                    width: 80,
-                    height: 80,
+                    width: showCompactLayout ? 64 : 80,
+                    height: showCompactLayout ? 64 : 80,
                     child: Lottie.asset(
                       'assets/animations/zenAI.json',
                       controller: _lottieController,
@@ -245,8 +306,31 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
                       },
                     ),
                   ),
-                ),
-              ],
+                );
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: CollapsibleTextInput(
+                            controller: _textController,
+                            onSend: (text) {
+                              controller.sendTextMessage(text);
+                              _textController.clear();
+                              FocusScope.of(context).unfocus();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        controls,
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
@@ -254,9 +338,11 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
     );
   }
 
-  Widget _buildMessageBubble(BuildContext context, Map<String, dynamic> message) {
+  Widget _buildMessageBubble(
+      BuildContext context, Map<String, dynamic> message) {
     final isUser = message['isUser'] as bool;
-    final text = message['text'] as String;
+    final rawText = message['text'] as String;
+    final text = isUser ? rawText : TextHelpers.stripSsmlForDisplay(rawText);
     final transactionId = message['transactionId'];
     final hasTransactionId =
         transactionId != null && transactionId.toString().isNotEmpty;
@@ -267,7 +353,7 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.primary : AppColors.backgroundLight,
+          color: isUser ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -276,7 +362,7 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
           ),
           border: hasTransactionId && !isUser
               ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1)
-              : null,
+              : Border.all(color: AppColors.border.withOpacity(0.2)),
         ),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.75,
@@ -316,7 +402,7 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
               const SizedBox(height: 8),
               Obx(() {
                 final isSpeaking = _ttsService.isSpeaking.value &&
-                    _ttsService.currentText.value == text;
+                    _ttsService.currentText.value == rawText;
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -347,7 +433,7 @@ class _ZaiViewState extends State<ZaiView> with SingleTickerProviderStateMixin {
                           color: AppColors.primary,
                           size: 20,
                         ),
-                        onPressed: () => _ttsService.speak(text),
+                        onPressed: () => _ttsService.speak(rawText),
                         tooltip: 'Play response',
                       ),
                   ],
