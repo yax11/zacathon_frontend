@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -13,6 +17,10 @@ class AccountOcrView extends StatefulWidget {
 }
 
 class _AccountOcrViewState extends State<AccountOcrView> {
+  static const double _cutOutWidthFraction = 0.85;
+  static const double _cutOutHeightFraction = 0.22;
+  static const double _cutOutTopDenominator = 2.5;
+
   CameraController? _controller;
   Future<void>? _initializeControllerFuture;
   bool _isProcessing = false;
@@ -94,6 +102,15 @@ class _AccountOcrViewState extends State<AccountOcrView> {
     }
   }
 
+  Future<ui.Image> _loadUiImage(Uint8List bytes) {
+    final completer = Completer<ui.Image>();
+    ui.decodeImageFromList(
+      bytes,
+      (image) => completer.complete(image),
+    );
+    return completer.future;
+  }
+
   Future<String?> _processImage(XFile file) async {
     final inputImage = InputImage.fromFilePath(file.path);
     final recognisedText = await _textRecognizer.processImage(inputImage);
@@ -114,7 +131,35 @@ class _AccountOcrViewState extends State<AccountOcrView> {
       return null;
     }
 
-    return rawText;
+    final imageBytes = await file.readAsBytes();
+    final image = await _loadUiImage(imageBytes);
+    final width = image.width.toDouble();
+    final height = image.height.toDouble();
+
+    final cutOutLeftFraction = (1 - _cutOutWidthFraction) / 2;
+    final cutOutTopFraction = (1 - _cutOutHeightFraction) / _cutOutTopDenominator;
+
+    final cutOutRect = Rect.fromLTWH(
+      width * cutOutLeftFraction,
+      height * cutOutTopFraction,
+      width * _cutOutWidthFraction,
+      height * _cutOutHeightFraction,
+    );
+
+    final buffer = StringBuffer();
+
+    for (final block in recognisedText.blocks) {
+      for (final line in block.lines) {
+        final boundingBox = line.boundingBox;
+
+        if (cutOutRect.contains(boundingBox.center)) {
+          buffer.writeln(line.text);
+        }
+      }
+    }
+
+    final filteredText = buffer.toString().trim();
+    return filteredText.isEmpty ? null : filteredText;
   }
 
   @override
@@ -234,6 +279,10 @@ class ScannerOverlay extends StatelessWidget {
 }
 
 class _ScannerOverlayPainter extends CustomPainter {
+  static const double _cutOutWidthFraction = _AccountOcrViewState._cutOutWidthFraction;
+  static const double _cutOutHeightFraction = _AccountOcrViewState._cutOutHeightFraction;
+  static const double _cutOutTopDenominator = _AccountOcrViewState._cutOutTopDenominator;
+
   final double borderRadius = 16;
   final double borderWidth = 3;
   final Color borderColor = AppColors.primary;
@@ -243,10 +292,10 @@ class _ScannerOverlayPainter extends CustomPainter {
     final overlayPaint = Paint()..color = Colors.white.withOpacity(0.75);
     final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    final cutOutWidth = size.width * 0.85;
-    final cutOutHeight = size.height * 0.22;
+    final cutOutWidth = size.width * _cutOutWidthFraction;
+    final cutOutHeight = size.height * _cutOutHeightFraction;
     final cutOutLeft = (size.width - cutOutWidth) / 2;
-    final cutOutTop = (size.height - cutOutHeight) / 2.5;
+    final cutOutTop = (size.height - cutOutHeight) / _cutOutTopDenominator;
 
     final cutOutRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(cutOutLeft, cutOutTop, cutOutWidth, cutOutHeight),

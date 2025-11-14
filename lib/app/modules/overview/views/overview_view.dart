@@ -8,11 +8,24 @@ import 'package:zenith_ai/widgets/overview/balance_card.dart';
 import 'package:zenith_ai/widgets/overview/quick_actions.dart';
 import '../controllers/overview_controller.dart';
 
-class OverviewView extends GetView<OverviewController> {
+class OverviewView extends StatelessWidget {
   const OverviewView({super.key});
+
+  OverviewController get controller {
+    // Ensure controller is registered before accessing
+    if (!Get.isRegistered<OverviewController>()) {
+      Get.put(OverviewController(), permanent: false);
+    }
+    return Get.find<OverviewController>();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Ensure controller is registered
+    if (!Get.isRegistered<OverviewController>()) {
+      Get.put(OverviewController(), permanent: false);
+    }
+
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 249, 249, 249),
       drawer: _buildDrawer(context),
@@ -84,7 +97,7 @@ class OverviewView extends GetView<OverviewController> {
                     gradientColors: isSavings
                         ? [
                             const Color.fromARGB(255, 160, 0, 0),
-                            const Color.fromARGB(255, 255, 109, 109),
+                            const Color.fromARGB(255, 146, 0, 0),
                           ]
                         : const [
                             Color(0xFFB80909),
@@ -93,10 +106,7 @@ class OverviewView extends GetView<OverviewController> {
                   );
                 }).toList();
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: BalanceCardCarousel(cards: cards),
-                );
+                return BalanceCardCarousel(cards: cards);
               }),
 
               const SizedBox(height: 16),

@@ -370,54 +370,114 @@ class _ZenAiModalState extends State<_ZenAiModal>
                     padding: const EdgeInsets.only(top: 16),
                     child: Obx(() {
                       final isSpeaking = _ttsService.isSpeaking.value;
+                      final responseText = TextHelpers.stripSsmlForDisplay(
+                          _controller.aiResponse.value);
+
+                      // Check if text exceeds 3 lines
+                      final textPainter = TextPainter(
+                        text: TextSpan(
+                          text: responseText,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                          ),
+                        ),
+                        maxLines: 3,
+                        textDirection: TextDirection.ltr,
+                      );
+                      textPainter.layout(
+                          maxWidth: MediaQuery.of(context).size.width - 120);
+                      final exceedsThreeLines = textPainter.didExceedMaxLines;
+
                       return Column(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: AppColors.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    TextHelpers.stripSsmlForDisplay(
-                                        _controller.aiResponse.value),
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 14,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pop(context);
+                              Get.toNamed(AppRoutes.zai);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppColors.primary.withOpacity(0.3),
                                 ),
-                                const SizedBox(width: 8),
-                                if (isSpeaking)
-                                  SizedBox(
-                                    width: 60,
-                                    height: 28,
-                                    child: Lottie.asset(
-                                      'assets/animations/wave-voice.json',
-                                      repeat: true,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Stack(
+                                      children: [
+                                        Text(
+                                          responseText,
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontSize: 14,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.clip,
+                                        ),
+                                        if (exceedsThreeLines)
+                                          Positioned(
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            child: IgnorePointer(
+                                              child: Container(
+                                                height: 40,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                    colors: [
+                                                      AppColors.primary
+                                                          .withOpacity(0.0),
+                                                      AppColors.primary
+                                                          .withOpacity(0.1),
+                                                    ],
+                                                  ),
+                                                  borderRadius:
+                                                      const BorderRadius.only(
+                                                    bottomLeft:
+                                                        Radius.circular(8),
+                                                    bottomRight:
+                                                        Radius.circular(8),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                  )
-                                else
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.volume_up,
-                                      size: 20,
-                                      color: AppColors.primary,
-                                    ),
-                                    onPressed: () => _speakResponse(
-                                        _controller.aiResponse.value),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
                                   ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  if (isSpeaking)
+                                    SizedBox(
+                                      width: 60,
+                                      height: 28,
+                                      child: Lottie.asset(
+                                        'assets/animations/wave-voice.json',
+                                        repeat: true,
+                                      ),
+                                    )
+                                  else
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.volume_up,
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                      onPressed: () => _speakResponse(
+                                          _controller.aiResponse.value),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                           if (isSpeaking)

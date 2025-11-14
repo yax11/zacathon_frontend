@@ -9,8 +9,8 @@ class BalanceCardData {
     required this.accountName,
     this.backgroundImage = 'assets/images/bg.png',
     this.gradientColors = const [
-      Color(0xFFB80909),
-      Color(0xFFDA1A1A),
+      Color.fromARGB(255, 255, 0, 0),
+      Color.fromARGB(255, 0, 0, 0),
     ],
   });
 
@@ -45,17 +45,17 @@ class _BalanceCardState extends State<BalanceCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.18),
+            color: AppColors.primary.withOpacity(0.05),
             blurRadius: 14,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
             Positioned.fill(
@@ -76,7 +76,7 @@ class _BalanceCardState extends State<BalanceCard> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: widget.data.gradientColors
-                        .map((color) => color.withOpacity(0.85))
+                        .map((color) => color.withOpacity(0.8))
                         .toList(),
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
@@ -85,7 +85,7 @@ class _BalanceCardState extends State<BalanceCard> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -175,7 +175,7 @@ class _BalanceCardCarouselState extends State<BalanceCardCarousel> {
   @override
   void initState() {
     super.initState();
-    _controller = PageController(viewportFraction: 0.9);
+    _controller = PageController(viewportFraction: 0.95);
   }
 
   @override
@@ -190,7 +190,7 @@ class _BalanceCardCarouselState extends State<BalanceCardCarousel> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 210,
+          height: 200,
           child: PageView.builder(
             controller: _controller,
             itemCount: widget.cards.length,
@@ -201,7 +201,10 @@ class _BalanceCardCarouselState extends State<BalanceCardCarousel> {
             },
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: EdgeInsets.only(
+                  left: index == 0 ? 16 : 6,
+                  right: index == widget.cards.length - 1 ? 16 : 6,
+                ),
                 child: BalanceCard(
                   data: widget.cards[index],
                 ),

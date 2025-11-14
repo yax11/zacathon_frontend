@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:lottie/lottie.dart';
 import '../../../core/constants/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/helpers.dart';
@@ -536,14 +535,10 @@ class _TransferViewContentState extends State<_TransferViewContent> {
                   return Column(
                     children: [
                       const SizedBox(height: 12),
-                      Center(
-                        child: SizedBox(
-                          width: 72,
-                          height: 72,
-                          child: Lottie.asset(
-                            'assets/animations/preloader.json',
-                            repeat: true,
-                          ),
+                      const LinearProgressIndicator(
+                        backgroundColor: AppColors.border,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
                         ),
                       ),
                       const SizedBox(height: 16),

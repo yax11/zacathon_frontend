@@ -299,22 +299,6 @@ class _LoginViewContentState extends State<_LoginViewContent> {
                   onPressed: () {},
                   child: const Text('Forgot Password?'),
                 ),
-
-                const SizedBox(height: 8),
-
-                // Continue in Internet Banking
-                Center(
-                  child: GestureDetector(
-                    onTap: () {},
-                    child: const Text(
-                      'Continue in Internet Banking',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

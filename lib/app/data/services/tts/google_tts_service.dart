@@ -49,7 +49,15 @@ class GoogleTtsService extends GetxService {
       return;
     }
 
-    final apiKey = dotenv.env['GOOGLE_TTS_API_KEY'] ?? '';
+    // Try to get GOOGLE_TTS_API_KEY from environment, with error handling
+    String apiKey;
+    try {
+      apiKey = dotenv.env['GOOGLE_TTS_API_KEY'] ?? '';
+    } catch (e) {
+      // If dotenv is not loaded, set empty string
+      apiKey = '';
+    }
+
     if (apiKey.isEmpty) {
       lastError.value = 'Missing GOOGLE_TTS_API_KEY in .env';
       print('GoogleTtsService: GOOGLE_TTS_API_KEY is not set.');
