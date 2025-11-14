@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_routes.dart';
+import '../../../core/utils/helpers.dart';
+import '../../overview/controllers/overview_controller.dart';
 import '../widgets/success_modal.dart';
 
 class AirtimeView extends StatefulWidget {
@@ -13,31 +15,41 @@ class AirtimeView extends StatefulWidget {
 
 class _AirtimeViewState extends State<AirtimeView> {
   String? _selectedAccount;
+  String? _selectedAccountNumber;
   String? _selectedOperator;
   final TextEditingController _mobileNumberController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   bool _scheduleAirtime = false;
 
-  final List<Map<String, dynamic>> _accounts = [
-    {
-      'name': 'FINNSTART INNOVATION LAB',
-      'accountNumber': '1217822311',
-      'balance': '₦ *****',
-      'currency': 'NGN',
-    },
-    {
-      'name': 'TITUS TUKURAH YAKUBU',
-      'accountNumber': '2252925762',
-      'balance': '₦ *****',
-      'currency': 'NGN',
-    },
-  ];
+  OverviewController get _overviewController {
+    // Ensure controller is registered before accessing
+    if (!Get.isRegistered<OverviewController>()) {
+      Get.put(OverviewController(), permanent: false);
+    }
+    return Get.find<OverviewController>();
+  }
 
   final List<Map<String, dynamic>> _operators = [
-    {'name': 'MTN', 'color': const Color(0xFFFFD700)},
-    {'name': 'glo', 'color': const Color(0xFF008000)},
-    {'name': 'airtel', 'color': const Color(0xFFE60000)},
-    {'name': '9Mobi', 'color': Colors.black},
+    {
+      'name': 'MTN',
+      'image': 'assets/images/mtn.jpg',
+      'color': const Color(0xFFFFD700)
+    },
+    {
+      'name': 'glo',
+      'image': 'assets/images/glo.jpg',
+      'color': const Color(0xFF008000)
+    },
+    {
+      'name': 'airtel',
+      'image': 'assets/images/airtel.jpg',
+      'color': const Color(0xFFE60000)
+    },
+    {
+      'name': '9Mobile',
+      'image': 'assets/images/9Mobile.jpg',
+      'color': Colors.black
+    },
   ];
 
   @override
@@ -56,118 +68,148 @@ class _AirtimeViewState extends State<AirtimeView> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Select an Account',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textPrimary),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: _accounts.length,
-                      itemBuilder: (context, index) {
-                        final account = _accounts[index];
-                        final accountLabel =
-                            '${account['name']} - ${account['accountNumber']}';
+            return Obx(() {
+              final accounts = _overviewController.accounts;
 
-                        return InkWell(
-                          onTap: () {
-                            setModalState(() {
-                              selectedAccount = accountLabel;
-                            });
-                            setState(() {
-                              _selectedAccount = accountLabel;
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 16),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: AppColors.border.withOpacity(0.5),
-                                  width: 0.5,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        accountLabel,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        account['balance'] as String,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Radio<String>(
-                                  value: accountLabel,
-                                  groupValue: selectedAccount,
-                                  onChanged: (value) {
-                                    setModalState(() {
-                                      selectedAccount = value;
-                                    });
-                                    setState(() {
-                                      _selectedAccount = accountLabel;
-                                    });
-                                    Navigator.pop(context);
-                                  },
-                                  activeColor: AppColors.primary,
-                                ),
-                              ],
+              return Container(
+                height: MediaQuery.of(context).size.height * 0.7,
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Select an Account',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                        );
-                      },
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: AppColors.textPrimary),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
+                    const Divider(height: 1),
+                    Expanded(
+                      child: _overviewController.isLoading.value
+                          ? const Center(child: CircularProgressIndicator())
+                          : accounts.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No accounts available',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: accounts.length,
+                                  itemBuilder: (context, index) {
+                                    final account = accounts[index];
+                                    final accountLabel =
+                                        '${account.bankName} - ${account.accountNumber}';
+                                    final balanceText =
+                                        Helpers.formatCurrency(account.balance);
+
+                                    return InkWell(
+                                      onTap: () {
+                                        setModalState(() {
+                                          selectedAccount = accountLabel;
+                                        });
+                                        setState(() {
+                                          _selectedAccount = accountLabel;
+                                          _selectedAccountNumber =
+                                              account.accountNumber;
+                                        });
+                                        Navigator.pop(context);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 16),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: AppColors.border
+                                                  .withOpacity(0.5),
+                                              width: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    accountLabel,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      color:
+                                                          AppColors.textPrimary,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    balanceText,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Radio<String>(
+                                              value: accountLabel,
+                                              groupValue: selectedAccount,
+                                              onChanged: (value) {
+                                                setModalState(() {
+                                                  selectedAccount = value;
+                                                });
+                                                setState(() {
+                                                  _selectedAccount =
+                                                      accountLabel;
+                                                  _selectedAccountNumber =
+                                                      account.accountNumber;
+                                                });
+                                                Navigator.pop(context);
+                                              },
+                                              activeColor: AppColors.primary,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                    ),
+                  ],
+                ),
+              );
+            });
           },
         );
       },
@@ -179,7 +221,8 @@ class _AirtimeViewState extends State<AirtimeView> {
     SuccessModal.show(
       context: context,
       title: 'Success',
-      message: 'Your airtime recharge to ${_mobileNumberController.text} was successful',
+      message:
+          'Your airtime recharge to ${_mobileNumberController.text} was successful',
       onViewReceipt: () {
         Navigator.pop(context);
         Get.toNamed(AppRoutes.receipt, arguments: {
@@ -249,11 +292,16 @@ class _AirtimeViewState extends State<AirtimeView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Select an Account
-              _buildDropdownField(
-                label: 'Select an Account',
-                hint: _selectedAccount ?? 'Select Account',
-                onTap: () => _showAccountSelectionModal(context),
-              ),
+              Obx(() => _buildDropdownField(
+                    label: 'Select an Account',
+                    hint: _selectedAccount ??
+                        (_overviewController.accounts.isEmpty
+                            ? 'Loading accounts...'
+                            : 'Select Account'),
+                    onTap: _overviewController.accounts.isEmpty
+                        ? () {} // Do nothing when accounts are loading
+                        : () => _showAccountSelectionModal(context),
+                  )),
               const SizedBox(height: 24),
 
               // Select Mobile Operator
@@ -276,9 +324,11 @@ class _AirtimeViewState extends State<AirtimeView> {
                       ),
                       child: _buildOperatorCard(
                         name: operator['name'] as String,
+                        image: operator['image'] as String,
                         color: operator['color'] as Color,
                         isSelected: isSelected,
-                        onTap: () => setState(() => _selectedOperator = operator['name'] as String),
+                        onTap: () => setState(() =>
+                            _selectedOperator = operator['name'] as String),
                       ),
                     ),
                   );
@@ -504,6 +554,7 @@ class _AirtimeViewState extends State<AirtimeView> {
 
   Widget _buildOperatorCard({
     required String name,
+    required String image,
     required Color color,
     required bool isSelected,
     required VoidCallback onTap,
@@ -513,96 +564,54 @@ class _AirtimeViewState extends State<AirtimeView> {
       child: Container(
         height: 100,
         decoration: BoxDecoration(
-          color: color,
           borderRadius: BorderRadius.zero,
           border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
-            width: 2,
+            color: isSelected ? AppColors.primary : AppColors.border,
+            width: isSelected ? 3 : 1,
           ),
         ),
         child: Stack(
           children: [
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (name == 'MTN')
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'MTN',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+            // Operator Image
+            ClipRect(
+              child: Image.asset(
+                image,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to colored container if image fails to load
+                  return Container(
+                    color: color,
+                    child: Center(
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ),
-                    )
-                  else if (name == 'glo')
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'glo',
-                          style: TextStyle(
-                            color: Colors.green,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (name == 'airtel')
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'a',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                ],
+                  );
+                },
               ),
             ),
+            // Overlay for better visibility
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(isSelected ? 0.1 : 0.2),
+              ),
+            ),
+            // Selected indicator
             if (isSelected)
               Positioned(
                 top: 4,
                 right: 4,
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: color,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -769,8 +778,10 @@ class _AirtimeViewState extends State<AirtimeView> {
     Color? textColor,
     Color? iconColor,
   }) {
-    final defaultTextColor = isSelected ? AppColors.primary : AppColors.textPrimary;
-    final defaultIconColor = isSelected ? AppColors.primary : AppColors.textSecondary;
+    final defaultTextColor =
+        isSelected ? AppColors.primary : AppColors.textPrimary;
+    final defaultIconColor =
+        isSelected ? AppColors.primary : AppColors.textSecondary;
 
     return ListTile(
       leading: Icon(
